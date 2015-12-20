@@ -32,7 +32,7 @@ spacescompatible(a::StieltjesSpace,b::StieltjesSpace)=spacescompatible(a.space,b
 domain(sp::StieltjesSpace)=Complement(ComplexPlane(),domain(sp.space))
 
 
-evaluate(sp::StieltjesSpace,v::Vector,z)=stieltjes(sp.space,v,z)
+evaluate(v::AbstractVector,sp::StieltjesSpace,z)=stieltjes(sp.space,v,z)
 
 stieltjes(f::Fun)=Fun(f.coefficients,StieltjesSpace(space(f)))
 
