@@ -50,18 +50,25 @@ Base.ones(S::StieltjesSpace)=Fun(ones(1),S)
 # we assume boundedness
 
 Space{DD<:Interval}(Γ::Complement{ComplexPlane,DD})=StieltjesSpace(JacobiWeight(0.5,0.5,Γ.del))
-Space{DD<:UnionDomain}(Γ::Complement{ComplexPlane,DD})=mapreduce(d->StieltjesSpace(d).space,PiecewiseSpace,Γ.del.domains)
+Space{DD<:Circle}(Γ::Complement{ComplexPlane,DD})=StieltjesSpace(Laurent(Γ.del))
+Space{DD<:UnionDomain}(Γ::Complement{ComplexPlane,DD})=StieltjesSpace(PiecewiseSpace(map(d->Space(d).space,map(x->ComplexPlane()\x,Γ.del))))
 
 
 
 
-# represents strip between a < im z < b
-# TODO: rotations
-immutable Strip <: Domain{Complex128,2}
-    a::Float64
-    b::Float64
+# represents strip between a < ℑ(z*exp(-im*θ)) < b
+immutable Strip{T} <: Domain{Complex{T},2}
+    a::T
+    b::T
+    θ::T
 end
 
+Strip(a,b,θ) = Strip(promote(a,b,θ)...)
+Strip(a,b) = Strip(a,b,0)
+Strip(b) = Strip(-b,b)
+
+Base.show(io::IO,d::ComplexPlane)=print(io,"ℂ")
+Base.show(io::IO,d::Complement)=print(io,"$(d.full) \\$(d.del)")
 
 
 
