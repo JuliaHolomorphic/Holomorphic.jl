@@ -4,7 +4,7 @@ module Holomorphic
 
 
 import ApproxFun: UnivariateSpace, domain, evaluate, ComplexBasis, spacescompatible,
-                    Space, defaultFun
+                    Space, defaultFun, union_rule, ConstantSpace
 import SingularIntegralEquations: stieltjes
 
 # represents the whole Planess
@@ -36,12 +36,15 @@ end
 StieltjesSpace(sp::UnivariateSpace)=StieltjesSpace{typeof(sp),typeof(domain(sp))}(sp)
 spacescompatible(a::StieltjesSpace,b::StieltjesSpace)=spacescompatible(a.space,b.space)
 
-domain(sp::StieltjesSpace)=Complement(ComplexPlane(),domain(sp.space))
+domain(sp::StieltjesSpace)=ComplexPlane()\domain(sp.space)
+evaluate(v::AbstractVector,sp::StieltjesSpace,z)=v[1]+stieltjes(sp.space,v[2:end],z)
+stieltjes(f::Fun)=Fun([0;f.coefficients],StieltjesSpace(space(f)))
 
 
-evaluate(v::AbstractVector,sp::StieltjesSpace,z)=stieltjes(sp.space,v,z)
+union_rule(A::ConstantSpace,B::StieltjesSpace)=B
+Base.ones{T<:Number}(::Type{T},S::StieltjesSpace)=Fun(ones(T,1),S)
+Base.ones(S::StieltjesSpace)=Fun(ones(1),S)
 
-stieltjes(f::Fun)=Fun(f.coefficients,StieltjesSpace(space(f)))
 
 # construct spaces for complement
 # we assume boundedness
