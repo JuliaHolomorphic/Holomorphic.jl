@@ -5,7 +5,7 @@ module Holomorphic
 
 import ApproxFun: UnivariateSpace, domain, evaluate, ComplexBasis, spacescompatible,
                     Space, defaultFun, union_rule, ConstantSpace, points, checkpoints,
-                    transform, plan_transform
+                    transform, plan_transform, conversion_rule, coefficients
 import SingularIntegralEquations: stieltjes
 
 
@@ -15,8 +15,10 @@ export ℂ
 immutable ComplexPlane <: Domain{Complex128,2} end
 
 const ℂ=ComplexPlane()
+Base.reverse(C::ComplexPlane)=C
 
 Base.intersect(a::ComplexPlane,b::ComplexPlane)=a
+Base.union(a::ComplexPlane,b::ComplexPlane)=a
 
 
 # represents S\A
@@ -26,10 +28,11 @@ immutable Complement{SS,AA,T,d} <: Domain{T,d}
 end
 
 Base.intersect(a::Complement,b::Complement)=Complement(a.full ∩ b.full,a.del ∪ b.del)
+Base.union(a::Complement,b::Complement)=Complement(a.full ∪ b.full,a.del ∩ b.del)
 
 Complement(A::Domain,B::Domain)=Complement{typeof(A),typeof(B),eltype(A),ndims(A)}(A,B)
 Base.setdiff(a::Domain,b::Domain)=Complement(a,b)
-
+Base.reverse(a::Complement)=reverse(a.full)\reverse(a.del)
 
 immutable StieltjesSpace{S,DD} <:  Space{ComplexBasis,Complement{ComplexPlane,DD},2}
     space::S
@@ -43,13 +46,11 @@ StieltjesSpace(sp::UnivariateSpace)=StieltjesSpace{typeof(sp),typeof(domain(sp))
 spacescompatible(a::StieltjesSpace,b::StieltjesSpace)=spacescompatible(a.space,b.space)
 
 domain(sp::StieltjesSpace)=ℂ\domain(sp.space)
-evaluate(v::AbstractVector,sp::StieltjesSpace,z)=v[1]+stieltjes(sp.space,v[2:end],z)
-stieltjes(f::Fun)=Fun([0;f.coefficients],StieltjesSpace(space(f)))
+evaluate(v::AbstractVector,sp::StieltjesSpace,z)=stieltjes(sp.space,v,z)
+stieltjes(f::Fun)=Fun(f.coefficients,StieltjesSpace(space(f)))
 
-
-union_rule(A::ConstantSpace,B::StieltjesSpace)=B
-Base.ones{T<:Number}(::Type{T},S::StieltjesSpace)=Fun(ones(T,1),S)
-Base.ones(S::StieltjesSpace)=Fun(ones(1),S)
+union_rule(A::StieltjesSpace,B::StieltjesSpace)=StieltjesSpace(A.space ∪ B.space)
+coefficients(v::Vector,A::StieltjesSpace,B::StieltjesSpace)=coefficients(v,A.space,B.space)
 
 
 # construct spaces for complement
@@ -76,12 +77,39 @@ plan_transform{DD<:Interval}(S::StieltjesSpace{JacobiWeight{Ultraspherical{1,DD}
 function transform{DD<:Interval}(S::StieltjesSpace{JacobiWeight{Ultraspherical{1,DD},DD},DD},vals,plan)
     @assert S.space.α==S.space.β==0.5
     n=length(vals)
-    cfs=transform(Taylor((1-1/n)*Circle()),vals,plan)
-    for k=2:length(cfs)
-        cfs[k]*=1/((1-1/n)^(k-1)*π)
+    L=Laurent((1-1/n)*Circle())
+    cfs1=transform(L,vals)
+    for k=3:2:length(cfs1)
+        cfs1[k]*=1/((1-1/n)^(div(k+1,2)-1)*π)
     end
-    cfs
+    for k=2:2:length(cfs1)
+        cfs1[k]*=(1-1/n)^(div(k,2))/(π)
+    end
+
+    L=Laurent(1/(1-1/n)*Circle())
+    vals2=[vals[1];reverse!(vals[2:end])]
+    cfs2=transform(L,vals2)
+
+    for k=3:2:length(cfs2)
+        cfs2[k]*=(1-1/n)^(div(k+1,2)-1)/(π)
+    end
+    for k=2:2:length(cfs2)
+        cfs2[k]*=1/((1-1/n)^(div(k,2))*π)
+    end
+    (cfs1-cfs2)[3:2:end]
 end
+
+
+# function transform{DD<:Interval}(S::StieltjesSpace{JacobiWeight{Ultraspherical{1,DD},DD},DD},vals,plan)
+#     @assert S.space.α==S.space.β==0.5
+#     n=length(vals)
+#     cfs=transform(Taylor((1-1/n)*Circle()),vals,plan)
+#     for k=2:length(cfs)
+#         cfs[k]*=1/((1-1/n)^(k-1)*π)
+#     end
+#     cfs
+# end
+
 
 
 ## ℂ\Circle()
